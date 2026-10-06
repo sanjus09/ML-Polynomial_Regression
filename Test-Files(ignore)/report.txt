@@ -16,9 +16,9 @@
 \section{Introduction and Approach}
 This report documents the approach used to develop polynomial regression models for two geothermal energy datasets. The primary goal was to predict a continuous target variable \(y\) while avoiding underfitting and overfitting. 
 
-To build this pipeline, I focused on understanding the underlying mathematics rather than relying on black-box tools. The core model, including the closed-form matrix operations for L2 regularization (Ridge Regression) and the evaluation metrics (MSE and \(R^2\)), was built entirely from scratch using standard \texttt{numpy}. I used \texttt{scikit-learn} for KFold algorithm, data preparation tasks, specifically for splitting the data and generating polynomial combinations (\texttt{PolynomialFeatures}) . 
+The core model, including the closed-form matrix operations for L2 regularization (Ridge Regression) and the evaluation metrics (MSE and \(R^2\)), was built entirely from scratch using standard \texttt{numpy}. I used \texttt{scikit-learn} for KFold algorithm, data preparation tasks, specifically for splitting the data and generating polynomial combinations (\texttt{PolynomialFeatures}) . 
 
-While writing the code, my main priority was on mathematical correctness and rigorous validation rather than heavily optimizing the training execution time.
+While writing the code, my priority was on correctness and thorough validation over runtime. Even though the validation \(R^2\) started dropping after the optimal complexity, I intentionally let the grid search run through all degrees up to 10 to ensure a complete evaluation (in context of model1).
 
 \section{Methodology}
 To find the best polynomial degree, I needed a reliable way to test the models on unseen data. 
@@ -28,33 +28,45 @@ Initially, I tested a simple 80-20 train-validation split. This straightforward 
 \begin{figure}[h]
     \centering
     % Replace '80_20_split_image.png' with your actual file name
-    \includegraphics[width=0.8\textwidth]{80_20_split_image.png} 
-    \caption{Initial test using a simple 80-20 train-validation split.}
+    \includegraphics[width=0.8\textwidth]{train-val.png} 
+    \caption{Initial test using a simple 80-20 train-validation split on model1.}
 \end{figure}
 
 However, to make the results more reliable and unbiased, I moved to 5-Fold Cross-Validation. In 5-Fold Cross-Validation, the model trains and tests five different times on different slices of the data, and the errors are averaged. 
 
-I combined this with L2 Regression. Adding the L2 penalty (\(\lambda\)) helps prevent overfitting when testing high polynomial degrees and ensures the matrix calculations remain stable. For both problems, I used a grid search to test different combinations of polynomial degrees and \(\lambda\) values.
+I used L2 Regularization (Ridge Regression) primarily because it allows a direct, closed-form matrix solution \(\hat{\mathbf{w}} = (\mathbf{X}^T\mathbf{X} + \lambda N \mathbf{I})^{-1}\mathbf{X}^T\mathbf{y}\). Adding the \(\lambda N \mathbf{I}\) term ensures that the matrix is always invertible and avoids numerical singularity, making training a straightforward matrix solve in NumPy without needing iterative optimization. Furthermore, as higher polynomial degrees create correlated terms, the L2 penalty naturally shrinks these weights together to keep the fitted curve smooth and prevent  (Instead of manually computing an explicit matrix inverse, I solved the regularized normal equations directly using \texttt{np.linalg.solve}.).
 
 \section{Phase 1: Power Plant Steam Turbine Optimization (var1)}
 For the first phase, the dataset contained 6 operational parameters to predict the Net Power Score. 
 
-Upon inspecting the dataset, I observed that all the raw feature values for these parameters naturally fell strictly between -1 and 1. Because the data was already perfectly bounded, I decided \textbf{not to apply any feature scaling}. Standardizing numbers that are already between -1 and 1 can stretch the domain. When these stretched numbers are raised to very high powers during polynomial expansion, they can cause numerical overflow and instability.
+Upon inspecting the dataset, I observed that all the raw feature values for these parameters naturally fell strictly between -1 and 1. Because the data was already perfectly bounded, I decided not to apply any feature scaling. 
 
-I searched for the optimal model by testing degrees up to 10. The 5-Fold Cross-Validation grid search results are shown below:
+To find the best model, I tested degrees up to 10 using a simple tuning process:
+\begin{itemize}
+    \item First, I tested a broad set of \(\lambda\) values from \(10^{-4}\) to $10.0$ across all degrees. This showed that \textbf{Degree 5} worked best, with the optimal \(\lambda\) lying close to $0.01$ (Validation MSE \(\approx 0.5389\)).
+    \item Next, I zoomed in and tested smaller intervals between $0.0033$ and $0.0037$ around this region to fine-tune the penalty.
+\end{itemize}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=1\textwidth]{var1.png}
-    \caption{Terminal output showing 5-Fold CV results for Phase 1.}
+    % Initial search output image
+    \includegraphics[width=0.9\textwidth]{var1.png}
+    \caption{Initial 5-Fold CV coarse grid search across wide \(\lambda\) values for Phase 1.}
 \end{figure}
 
-The grid search identified that the optimal configuration is a polynomial of \textbf{Degree 5} with a regularization parameter of \textbf{\(\lambda = 0.01\)}. This configuration achieved a Best Validation MSE of $0.5389$ and an excellent \(R^2\) score of $0.9440$. 
+\begin{figure}[h]
+    \centering
+    % Final refined search output image
+    \includegraphics[width=0.9\textwidth]{var1_final.png}
+    \caption{Final refined 5-Fold CV terminal output showing the optimal tuned parameters for Phase 1.}
+\end{figure}
+
+Through this progressive refinement, the grid search converged on an optimal configuration of \textbf{Degree 5} with a regularization parameter of \textbf{\(\lambda = 0.0036\)}. As shown in the final terminal results, this tuned model further reduced the Best Validation MSE to \textbf{$0.5055$} (\(5.0546 \times 10^{-1}\)) and improved the validation \(R^2\) score to \textbf{$0.9474$} across 462 polynomial features.
 
 \section{Phase 2: Subterranean Thermal Reservoir Mapping (var2)}
 For the second phase, the goal was to predict a Thermal Anomaly Score using 3 spatial coordinate offsets. 
 
-Similar to Phase 1, the feature values for this dataset were also strictly bounded between -1 and 1. Therefore, I again skipped feature scaling to preserve the natural boundaries of the spatial coordinates. Because of the complex geological structures described in the problem statement, I searched for the optimal model up to degree 20.
+Similar to Phase 1, the feature values for this dataset were also strictly bounded between -1 and 1. Therefore, I again skipped feature scaling to preserve the natural boundaries of the spatial coordinates. I searched for the optimal model up to degree 20.
 
 \begin{figure}[h]
     \centering
@@ -62,10 +74,13 @@ Similar to Phase 1, the feature values for this dataset were also strictly bound
     \caption{Terminal output showing 5-Fold CV results for Phase 2.}
 \end{figure}
 
-The search revealed that the optimal configuration is a polynomial of \textbf{Degree 10} with a regularization parameter of \textbf{\(\lambda = 0.01\)}. This model achieved a Best Validation MSE of $0.2662$ and a very high \(R^2\) score of $0.9938$. Despite generating 286 feature combinations, the L2 regularization kept the model smooth and effectively prevented overfitting.
+Using 5-fold cross-validation, degree~14 with \(\lambda = 0.001\) achieved the lowest mean validation MSE of $0.254841$ and the highest corresponding validation \(R^2\) of $0.994052$. Although degree~10 gave comparable performance, degree~14 was chosen based on the validation criterion. Since L2 regularization was actively shrinking unnecessary weights, the higher degree did not lead to overfitting and still generalized effectively.
 
 \section{GitHub Repository Structure}
-To keep the project organized and allow for easy evaluation, the repository is structured as follows:
+The complete code, training notebooks, and submission files are available at: \url{https://github.com/your-username/your-repo-name}.
+\\
+
+The repository is structured as follows:
 \begin{itemize}
     \item \textbf{\texttt{data/}}: Contains the provided training CSV files.
     \item \textbf{\texttt{model1.ipynb} \& \texttt{model2.ipynb}}: The main Jupyter Notebooks containing the complete, end-to-end pipelines for Phase 1 and Phase 2. Both notebooks share the same core mathematical logic but differ in their input/output files and hyperparameter search ranges.
@@ -74,6 +89,6 @@ To keep the project organized and allow for easy evaluation, the repository is s
 \end{itemize}
 
 \section{Conclusion}
-By using 5-Fold Cross-Validation and L2 regularization without arbitrary scaling, I successfully identified the true underlying patterns in both perfectly bounded datasets. The final models were retrained on 100\% of the available training data using the optimal hyperparameters found (Degree 5 for Phase 1, and Degree 10 for Phase 2). The final predictions on the test sets were generated and successfully exported to the required CSV formats for submission.
+Overall, through 5-fold cross-validation along with L2 regularization helped lock down the right degree and penalty for both problems without messing with feature scaling. Using the best hyperparameters found (degree 5 for Phase 1 and degree 14 for Phase 2), I retrained the final weights on the full training data and saved the test predictions to the submission CSVs.
 
 \end{document}
