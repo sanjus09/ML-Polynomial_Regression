@@ -16,7 +16,7 @@
 \section{Introduction and Approach}
 This report documents the approach used to develop polynomial regression models for two geothermal energy datasets. The primary goal was to predict a continuous target variable \(y\) while avoiding underfitting and overfitting. 
 
-The core model, including the closed-form matrix operations for L2 regularization (Ridge Regression) and the evaluation metrics (MSE and \(R^2\)), was built entirely from scratch using standard \texttt{numpy}. I used \texttt{scikit-learn} for KFold algorithm, data preparation tasks, specifically for splitting the data and generating polynomial combinations (\texttt{PolynomialFeatures}) . 
+The core model, including the closed-form matrix operations for L2 regularization (Ridge Regression) and the evaluation metrics (MSE and \(R^2\)), was built using standard \texttt{numpy}. I used \texttt{scikit-learn} for KFold algorithm, data preparation tasks, specifically for splitting the data and generating polynomial combinations (\texttt{PolynomialFeatures}) . 
 
 While writing the code, my priority was on correctness and thorough validation over runtime. Even though the validation \(R^2\) started dropping after the optimal complexity, I intentionally let the grid search run through all degrees up to 10 to ensure a complete evaluation (in context of model1).
 
@@ -34,7 +34,10 @@ Initially, I tested a simple 80-20 train-validation split. This straightforward 
 
 However, to make the results more reliable and unbiased, I moved to 5-Fold Cross-Validation. In 5-Fold Cross-Validation, the model trains and tests five different times on different slices of the data, and the errors are averaged. 
 
-I used L2 Regularization (Ridge Regression) primarily because it allows a direct, closed-form matrix solution \(\hat{\mathbf{w}} = (\mathbf{X}^T\mathbf{X} + \lambda N \mathbf{I})^{-1}\mathbf{X}^T\mathbf{y}\). Adding the \(\lambda N \mathbf{I}\) term ensures that the matrix is always invertible and avoids numerical singularity, making training a straightforward matrix solve in NumPy without needing iterative optimization. Furthermore, as higher polynomial degrees create correlated terms, the L2 penalty naturally shrinks these weights together to keep the fitted curve smooth and prevent  (Instead of manually computing an explicit matrix inverse, I solved the regularized normal equations directly using \texttt{np.linalg.solve}.).
+I used L2 Regularization (Ridge Regression) primarily because it allows a direct, closed-form matrix solution \(\hat{\mathbf{w}} = (\mathbf{X}^T\mathbf{X} + \lambda N \mathbf{I})^{-1}\mathbf{X}^T\mathbf{y}\). Adding the \(\lambda N \mathbf{I}\) term ensures that the matrix is always invertible and avoids numerical singularity, making training a straightforward matrix solve in NumPy without needing iterative optimization. Furthermore, as higher polynomial degrees create correlated terms, the L2 penalty naturally shrinks these weights together to keep the fitted curve smooth and prevent overfitting. 
+
+\\
+(NOTE : Instead of manually computing an explicit matrix inverse, I solved the regularized normal equations directly using \texttt{np.linalg.solve}.).
 
 \section{Phase 1: Power Plant Steam Turbine Optimization (var1)}
 For the first phase, the dataset contained 6 operational parameters to predict the Net Power Score. 
@@ -44,7 +47,7 @@ Upon inspecting the dataset, I observed that all the raw feature values for thes
 To find the best model, I tested degrees up to 10 using a simple tuning process:
 \begin{itemize}
     \item First, I tested a broad set of \(\lambda\) values from \(10^{-4}\) to $10.0$ across all degrees. This showed that \textbf{Degree 5} worked best, with the optimal \(\lambda\) lying close to $0.01$ (Validation MSE \(\approx 0.5389\)).
-    \item Next, I zoomed in and tested smaller intervals between $0.0033$ and $0.0037$ around this region to fine-tune the penalty.
+    \item Next, I zoomed in and tested smaller intervals between $0.002$ and $0.009$ around this region to fine-tune the penalty, and found the optimal \(\lambda\) to be around $0.004$.
 \end{itemize}
 
 \begin{figure}[h]
@@ -77,7 +80,7 @@ Similar to Phase 1, the feature values for this dataset were also strictly bound
 Using 5-fold cross-validation, degree~14 with \(\lambda = 0.001\) achieved the lowest mean validation MSE of $0.254841$ and the highest corresponding validation \(R^2\) of $0.994052$. Although degree~10 gave comparable performance, degree~14 was chosen based on the validation criterion. Since L2 regularization was actively shrinking unnecessary weights, the higher degree did not lead to overfitting and still generalized effectively.
 
 \section{GitHub Repository Structure}
-The complete code, training notebooks, and submission files are available at: \url{https://github.com/your-username/your-repo-name}.
+The complete code, training notebooks, and submission files are available at: \url{https://github.com/sanjus09/ML-Assignment1}.
 \\
 
 The repository is structured as follows:
@@ -86,6 +89,7 @@ The repository is structured as follows:
     \item \textbf{\texttt{model1.ipynb} \& \texttt{model2.ipynb}}: The main Jupyter Notebooks containing the complete, end-to-end pipelines for Phase 1 and Phase 2. Both notebooks share the same core mathematical logic but differ in their input/output files and hyperparameter search ranges.
     \item \textbf{\texttt{prediction\_files/}}: Contains the final exported prediction CSV files formatted for submission.
     \item \textbf{\texttt{Test\_files/}}: Contains early experimental scripts and rough tests. \textit{The evaluator can safely ignore this folder.}
+    \item \textbf{\texttt{Report.pdf}}
 \end{itemize}
 
 \section{Conclusion}

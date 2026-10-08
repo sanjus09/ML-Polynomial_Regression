@@ -14,7 +14,7 @@ This repository contains the end-to-end implementation for predicting continuous
 
 * **Custom Implementation**: Matrix operations for Ridge Regression and evaluation metrics (MSE, R-squared) are implemented purely in `numpy` to demonstrate mathematical understanding.
 * **Model Selection**: 5-Fold Cross-Validation combined with a grid search over polynomial degrees and lambda penalties to prevent overfitting.
-* **Feature Engineering**: `scikit-learn` was used strictly for generating polynomial combinations. No feature scaling was applied as all raw spatial and operational parameters were naturally bounded between -1 and 1.
+* **Feature Engineering**: `scikit-learn` was used strictly for generating polynomial combinations. 
 
 ## How to Run
 
